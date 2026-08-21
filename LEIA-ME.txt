@@ -1,0 +1,23 @@
+ENTROU, ECONOMIZOU — GERADOR AUTOMÁTICO LOCAL V2
+
+COMO USAR
+1. Extraia todos os arquivos deste ZIP para uma pasta.
+2. Dê dois cliques em INICIAR_GERADOR.bat.
+3. Uma janela preta ficará aberta e o navegador abrirá automaticamente.
+4. Cole o LINK ORIGINAL COMPLETO do anúncio do Mercado Livre.
+5. Clique em "Buscar e montar anúncio".
+6. Revise os dados encontrados.
+7. Se houver cupom, marque a opção e informe preço final + código.
+8. No campo "Seu link de afiliado", cole o link gerado pelo Programa de Afiliados.
+9. Copie a postagem e/ou baixe a imagem PNG.
+
+IMPORTANTE
+- Não feche a janela preta enquanto estiver usando o gerador.
+- Este programa não exige hospedagem. Ele roda somente no seu computador.
+- O Mercado Livre pode alterar a página dos anúncios. Por isso todos os campos continuam editáveis.
+- Se o Mercado Livre bloquear a leitura automática, abra "Acesso avançado" e informe um token oficial da API. O token é enviado apenas ao servidor local e não é salvo pelo programa.
+- Cupons nem sempre aparecem publicamente e devem ser informados manualmente.
+- Se a consulta falhar, continue usando o gerador manual que você já tem.
+
+REQUISITO
+Python 3 instalado no Windows.
