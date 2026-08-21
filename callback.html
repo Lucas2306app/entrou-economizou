@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrou, Economizou — Autorização Mercado Livre</title>
+  <style>
+    :root{
+      --navy:#07152f;
+      --panel:#0d1f42;
+      --yellow:#ffd500;
+      --green:#8ee000;
+      --white:#ffffff;
+      --muted:#b9c7df;
+      --red:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:24px;
+      font-family:Arial,Helvetica,sans-serif;
+      background:linear-gradient(180deg,#061129,#091d3d);
+      color:var(--white);
+    }
+    .card{
+      width:min(680px,100%);
+      background:var(--panel);
+      border:1px solid #2c4773;
+      border-radius:20px;
+      padding:28px;
+      box-shadow:0 18px 50px rgba(0,0,0,.35);
+    }
+    .brand{
+      font-size:30px;
+      font-weight:900;
+      margin-bottom:8px;
+    }
+    .brand span{color:var(--green)}
+    h1{font-size:22px;margin:22px 0 8px}
+    p{color:var(--muted);line-height:1.55}
+    .ok{
+      color:#e6ffd5;
+      background:#16351e;
+      border:1px solid #4d8337;
+      padding:12px 14px;
+      border-radius:12px;
+    }
+    .err{
+      color:#ffd9d9;
+      background:#35171b;
+      border:1px solid #93464e;
+      padding:12px 14px;
+      border-radius:12px;
+    }
+    label{
+      display:block;
+      margin:18px 0 7px;
+      font-size:13px;
+      color:#dce6f7;
+    }
+    input{
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #38547e;
+      background:#06152e;
+      color:white;
+      font-family:monospace;
+    }
+    button{
+      margin-top:12px;
+      padding:12px 16px;
+      border:0;
+      border-radius:10px;
+      background:var(--yellow);
+      color:var(--navy);
+      font-weight:800;
+      cursor:pointer;
+    }
+    .small{font-size:12px;color:var(--muted);margin-top:18px}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">Entrou, <span>Economizou</span></div>
+    <p>Retorno de autorização do Mercado Livre.</p>
+
+    <div id="result"></div>
+
+    <div id="codeArea" hidden>
+      <label for="code">Código de autorização</label>
+      <input id="code" readonly>
+      <button id="copy">Copiar código</button>
+    </div>
+
+    <p class="small">
+      Esta página não envia o código para nenhum servidor de terceiros.
+      Não compartilhe códigos, Client Secret, Access Token ou Refresh Token.
+    </p>
+  </main>
+
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const code = params.get("code");
+  const state = params.get("state");
+  const error = params.get("error");
+  const errorDescription = params.get("error_description");
+
+  const result = document.getElementById("result");
+  const codeArea = document.getElementById("codeArea");
+  const codeInput = document.getElementById("code");
+  const copyButton = document.getElementById("copy");
+
+  if (error) {
+    result.innerHTML =
+      '<div class="err"><strong>Autorização não concluída.</strong><br>' +
+      (errorDescription || error) + '</div>';
+    return;
+  }
+
+  if (!code) {
+    result.innerHTML =
+      '<div class="err"><strong>Nenhum código recebido.</strong><br>' +
+      'Esta página deve ser acessada pelo fluxo de autorização do Mercado Livre.</div>';
+    return;
+  }
+
+  result.innerHTML =
+    '<div class="ok"><strong>Autorização recebida com sucesso.</strong><br>' +
+    'Copie o código abaixo e volte ao gerador.</div>';
+
+  codeInput.value = code;
+  codeArea.hidden = false;
+
+  copyButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      copyButton.textContent = "Código copiado!";
+    } catch {
+      codeInput.select();
+      document.execCommand("copy");
+      copyButton.textContent = "Código copiado!";
+    }
+  });
+
+  // Mantém o state visível apenas no console para futura validação pelo gerador.
+  if (state) console.log("OAuth state recebido.");
+})();
+</script>
+</body>
+</html>
