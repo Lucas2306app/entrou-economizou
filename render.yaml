@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: entrou-economizou
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: MELI_CLIENT_ID
+        sync: false
+      - key: MELI_CLIENT_SECRET
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
+      - key: APP_SESSION_SECRET
+        generateValue: true
+      - key: APP_USER_1
+        sync: false
+      - key: APP_PASSWORD_1
+        sync: false
+      - key: APP_USER_2
+        sync: false
+      - key: APP_PASSWORD_2
+        sync: false

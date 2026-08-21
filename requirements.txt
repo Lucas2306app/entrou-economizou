@@ -1,0 +1,2 @@
+cryptography>=45,<48
+psycopg[binary]>=3.2,<4

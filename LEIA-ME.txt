@@ -1,21 +1,45 @@
-ENTROU, ECONOMIZOU — GERADOR AUTOMÁTICO LOCAL V2
+ENTROU, ECONOMIZOU — GERADOR AUTOMÁTICO LOCAL V3
 
 COMO USAR
 1. Extraia todos os arquivos deste ZIP para uma pasta.
 2. Dê dois cliques em INICIAR_GERADOR.bat.
 3. Uma janela preta ficará aberta e o navegador abrirá automaticamente.
-4. Cole o LINK ORIGINAL COMPLETO do anúncio do Mercado Livre.
-5. Clique em "Buscar e montar anúncio".
-6. Revise os dados encontrados.
-7. Se houver cupom, marque a opção e informe preço final + código.
-8. No campo "Seu link de afiliado", cole o link gerado pelo Programa de Afiliados.
-9. Copie a postagem e/ou baixe a imagem PNG.
+4. Escolha no topo entre MERCADO LIVRE e SHOPEE.
+5. Cole o LINK ORIGINAL COMPLETO do produto na plataforma escolhida.
+6. Clique em "Buscar e montar anúncio".
+7. Revise os dados encontrados.
+   Se houver várias fotos, clique na miniatura que deseja usar na arte e copiar para o WhatsApp.
+8. Se houver cupom, marque a opção e informe preço final + código.
+9. No campo "Seu link de afiliado", cole o link gerado pelo programa da plataforma escolhida.
+10. Copie a postagem e/ou baixe a imagem PNG.
+
+COMPARAÇÃO DE OFERTAS
+- Esta função é exclusiva do modo Mercado Livre.
+- Em páginas de catálogo, o gerador consulta outras ofertas vinculadas ao mesmo produto.
+- Uma oferta mais barata aparece apenas como sugestão; nenhuma troca é automática.
+- Use "Olhar anúncio" para conferir vendedor, frete, prazo, cupom e condições.
+- Ao escolher "Usar esta oferta", gere um novo link de afiliado específico para o anúncio escolhido.
+
+CANAL DO WHATSAPP
+- O botão "Copiar foto do produto" envia para a área de transferência somente a foto original, sem a arte promocional.
+- Quando o anúncio disponibilizar várias imagens, o botão copia a miniatura selecionada na galeria.
+- Se o anúncio começar com vídeo, o gerador tenta mostrar a capa do vídeo e as demais fotos públicas disponíveis.
+- O botão "Abrir Canal do WhatsApp" abre o WhatsApp Web; a escolha do Canal continua manual.
+- O texto é copiado separadamente pelo botão "Copiar publicação".
+- A arte só é salva quando você clicar separadamente em "Baixar PNG".
+- No WhatsApp, selecione seu Canal, cole o texto e confirme manualmente a publicação.
+- O gerador não publica sozinho nem utiliza automações não oficiais do WhatsApp.
 
 IMPORTANTE
 - Não feche a janela preta enquanto estiver usando o gerador.
 - Este programa não exige hospedagem. Ele roda somente no seu computador.
 - O Mercado Livre pode alterar a página dos anúncios. Por isso todos os campos continuam editáveis.
-- Se o Mercado Livre bloquear a leitura automática, abra "Acesso avançado" e informe um token oficial da API. O token é enviado apenas ao servidor local e não é salvo pelo programa.
+- A autorização OAuth agora está integrada ao gerador. Abra "Conexão com o Mercado Livre" para autorizar, renovar ou remover a conexão.
+- Access Token e Refresh Token ficam criptografados pelo Windows em %LOCALAPPDATA%\EntrouEconomizou e nunca são exibidos pela interface.
+- Quando necessário, o gerador renova o token automaticamente antes de consultar a API oficial.
+- A conexão OAuth do Mercado Livre fica oculta ao selecionar Shopee, pois as credenciais das plataformas são diferentes.
+- Na Shopee, o gerador tenta ler os dados públicos da página. Se a Shopee não expuser preço ou foto, complete os campos editáveis manualmente.
+- O link de afiliado da Shopee deve ser gerado no Programa de Afiliados da Shopee e colado no campo indicado.
 - Cupons nem sempre aparecem publicamente e devem ser informados manualmente.
 - Se a consulta falhar, continue usando o gerador manual que você já tem.
 
