@@ -693,6 +693,22 @@ def canonicalize_product_url(url, platform="mercadolivre"):
                            if key.lower() in keep])
     return urlunparse(("https", parsed.netloc.lower(), path, "", query, ""))
 
+
+def shopee_product_ids(url):
+    """Return (shop_id, item_id) from every public Shopee product URL format."""
+    if not is_allowed_product_url(url, "shopee"):
+        return None
+    path = urlparse(url).path
+    for pattern in (
+        r"-i\.(\d+)\.(\d+)(?:/|$)",
+        r"/product/(\d+)/(\d+)(?:/|$)",
+        r"/[^/]+/(\d+)/(\d+)(?:/|$)",
+    ):
+        match = re.search(pattern, path, re.I)
+        if match:
+            return match.group(1), match.group(2)
+    return None
+
 def is_allowed_image_url(url):
     try:
         host = (urlparse(url).hostname or "").lower()
@@ -1350,19 +1366,36 @@ def extract_shopee_images(source, ld, fallback=""):
     return found
 
 def parse_shopee_page(url, affiliate_input=False):
-    mobile_headers = None
-    if affiliate_input:
-        mobile_headers = {
-            "User-Agent": "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 Chrome/151.0 Mobile Safari/537.36",
-            "Referer": "https://shopee.com.br/",
-        }
+    # Short affiliate links return an intermediate shell to mobile user agents,
+    # without the product URL or metadata. The desktop user agent used by
+    # http_get receives the canonical product redirect.
+    request_headers = {"Referer": "https://shopee.com.br/"} if affiliate_input else None
     final_url, headers, body = http_get(
-        url, extra_headers=mobile_headers,
+        url, extra_headers=request_headers,
         redirect_validator=lambda target: is_allowed_product_input_url(target, "shopee"),
     )
     if not is_allowed_product_url(final_url, "shopee"):
         raise ValueError("O link redirecionou para um endereço fora da Shopee.")
+
+    # Current short links can land on /store-slug/shop_id/item_id. That page is
+    # only an app shell. The stable /product route exposes the public metadata.
+    product_ids = shopee_product_ids(final_url)
+    if affiliate_input and product_ids and not re.search(r"(?:-i\.\d+\.\d+|/product/\d+/\d+)", urlparse(final_url).path, re.I):
+        shop_id, item_id = product_ids
+        lookup_url = f"https://shopee.com.br/product/{shop_id}/{item_id}"
+        try:
+            final_url, headers, body = http_get(
+                lookup_url,
+                extra_headers={"Referer": final_url},
+                redirect_validator=lambda target: is_allowed_product_input_url(target, "shopee"),
+            )
+        except (HTTPError, URLError, TimeoutError):
+            pass
+
     source = body.decode("utf-8", errors="ignore")
+    public_url = meta(source, "og:url")
+    if is_allowed_product_url(public_url, "shopee") and shopee_product_ids(public_url):
+        final_url = public_url
     ld = extract_json_ld(source)
 
     title = clean_text(ld.get("name")) or clean_text(meta(source, "og:title")) or clean_text(meta(source, "twitter:title", "name"))
