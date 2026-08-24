@@ -1,11 +1,26 @@
-ENTROU, ECONOMIZOU — GERADOR AUTOMÁTICO LOCAL V3
+ENTROU, ECONOMIZOU — GERADOR AUTOMÁTICO PWA
 
-COMO USAR
+USO RÁPIDO NO CELULAR
+1. Abra a versão hospedada no Chrome ou navegador compatível e entre com seu usuário.
+2. Use "Instalar app". Se o botão não aparecer, use o menu do navegador e escolha
+   "Instalar app" ou "Adicionar à tela inicial".
+3. No Mercado Livre ou na Shopee, abra o produto e use o menu "Compartilhar".
+4. Escolha "Entrou, Economizou". O aplicativo detecta a plataforma, recebe o link
+   original ou de afiliado e inicia a busca automaticamente.
+5. Confira foto e preço, informe cupom se houver e toque em "Compartilhar anúncio".
+   O celular abre o seletor de compartilhamento com a foto e o texto. Como alguns
+   aplicativos não mantêm a legenda da imagem, o texto também é copiado quando o
+   navegador permite.
+
+O modo rápido é o padrão. Use "Mostrar opções avançadas" somente para editar resumo,
+pontos principais, pagamento, formato da arte ou foto manual.
+
+COMO USAR NO COMPUTADOR
 1. Extraia todos os arquivos deste ZIP para uma pasta.
 2. Dê dois cliques em INICIAR_GERADOR.bat.
 3. Uma janela preta ficará aberta e o navegador abrirá automaticamente.
-4. Escolha no topo entre MERCADO LIVRE e SHOPEE.
-5. Cole o LINK ORIGINAL ou o LINK DE AFILIADO do produto na plataforma escolhida.
+4. Cole o LINK ORIGINAL ou o LINK DE AFILIADO do produto. A plataforma é detectada.
+5. Se necessário, abra as opções avançadas para trocar manualmente a plataforma.
    Também é possível colar a mensagem compartilhada pelo celular, desde que ela contenha o link.
 6. Clique em "Buscar e montar anúncio".
 7. Revise os dados encontrados.
@@ -14,10 +29,12 @@ COMO USAR
 8. Se houver cupom, marque a opção e informe preço final + código.
 9. Se você começou pelo link original, cole no campo "Seu link de afiliado" o link gerado pelo programa da plataforma escolhida.
    Se começou pelo link de afiliado, esse campo já estará preenchido.
-10. Copie a postagem e/ou baixe a imagem PNG.
+10. Use "Compartilhar anúncio", copie separadamente o texto/foto ou, no modo
+    avançado, baixe a arte PNG.
 
 COMPARAÇÃO DE OFERTAS
-- Esta função é exclusiva do modo Mercado Livre.
+- Esta função é exclusiva do modo Mercado Livre e agora só é executada quando você
+  toca em "Procurar oferta mais barata".
 - Em páginas de catálogo, o gerador consulta outras ofertas vinculadas ao mesmo produto.
 - Uma oferta mais barata aparece apenas como sugestão; nenhuma troca é automática.
 - Use "Olhar anúncio" para conferir vendedor, frete, prazo, cupom e condições.
@@ -27,15 +44,18 @@ CANAL DO WHATSAPP
 - O botão "Copiar foto do produto" envia para a área de transferência somente a foto original, sem a arte promocional.
 - Quando o anúncio disponibilizar várias imagens, o botão copia a miniatura selecionada na galeria.
 - Se o anúncio começar com vídeo, o gerador tenta mostrar a capa do vídeo e as demais fotos públicas disponíveis.
-- O botão "Abrir Canal do WhatsApp" abre o WhatsApp Web; a escolha do Canal continua manual.
+- O botão principal usa o compartilhamento nativo do celular. A escolha do Canal e
+  a confirmação da publicação continuam manuais.
+- No computador, o modo avançado mantém o botão "Abrir Canal do WhatsApp".
 - O texto é copiado separadamente pelo botão "Copiar publicação".
 - A arte só é salva quando você clicar separadamente em "Baixar PNG".
 - No WhatsApp, selecione seu Canal, cole o texto e confirme manualmente a publicação.
 - O gerador não publica sozinho nem utiliza automações não oficiais do WhatsApp.
 
 IMPORTANTE
-- Não feche a janela preta enquanto estiver usando o gerador.
-- Este programa não exige hospedagem. Ele roda somente no seu computador.
+- Na versão local, não feche a janela preta enquanto estiver usando o gerador.
+- Na versão hospedada no Render, o mesmo programa funciona como site, PWA no celular
+  e aplicativo instalável no computador.
 - O Mercado Livre pode alterar a página dos anúncios. Por isso todos os campos continuam editáveis.
 - A autorização OAuth agora está integrada ao gerador. Abra "Conexão com o Mercado Livre" para autorizar, renovar ou remover a conexão.
 - Access Token e Refresh Token ficam criptografados pelo Windows em %LOCALAPPDATA%\EntrouEconomizou e nunca são exibidos pela interface.
@@ -44,6 +64,8 @@ IMPORTANTE
 - Na Shopee, o gerador tenta ler os dados públicos da página. Se a Shopee não expuser preço ou foto, complete os campos editáveis manualmente.
 - Links originais e de afiliado/encurtados são aceitos para Mercado Livre e Shopee.
 - O link com comissão é preservado exatamente como foi informado; o endereço original identificado é usado apenas para consultar o produto.
+- Em links sociais do Mercado Livre, o preço é lido somente do produto em destaque; os produtos recomendados da página são ignorados.
+- As características oficiais do Mercado Livre dependem da conexão OAuth ativa. Se o preço e a foto aparecerem, mas as características não, reconecte o Mercado Livre no gerador.
 - Cupons nem sempre aparecem publicamente e devem ser informados manualmente.
 - Se a consulta falhar, continue usando o gerador manual que você já tem.
 

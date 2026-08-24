@@ -16,6 +16,7 @@ Service** com estas opções:
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `python app.py`
 - Health Check Path: `/health`
+- Instance Type: `Free`
 
 ## 3. Configure as variáveis
 
@@ -43,6 +44,9 @@ Ela precisa corresponder ao valor de `PUBLIC_BASE_URL` seguido de
 `/oauth/callback`. Depois, abra o gerador e use **Conectar Mercado Livre**. O
 retorno agora é concluído automaticamente.
 
+Se existir uma variável antiga chamada `MELI_REDIRECT_URI`, remova-a. No Render,
+o programa monta o callback automaticamente usando `PUBLIC_BASE_URL`.
+
 ## Banco compartilhado
 
 Na primeira inicialização o programa cria, no banco existente, somente estas
@@ -60,3 +64,18 @@ dois dispositivos possam trabalhar ao mesmo tempo sem disputar o refresh token.
 Abra `https://SEU-SERVICO.onrender.com/health`. Quando tudo estiver configurado,
 o campo `ready` deverá aparecer como `true`. Depois entre com cada um dos dois
 usuários em dispositivos diferentes e faça uma busca de teste.
+
+## Instalar como aplicativo
+
+Depois do deploy, abra a URL HTTPS no celular e entre uma vez. Use o botão
+**Instalar app** ou a opção equivalente do menu do navegador. O mesmo endereço
+continua funcionando normalmente no computador.
+
+Quando a instalação e o recebimento de compartilhamentos forem suportados pelo
+navegador, **Entrou, Economizou** aparecerá entre os destinos do menu
+**Compartilhar** do Mercado Livre e da Shopee. O link recebido passa pelo login sem
+se perder, a plataforma é detectada e a busca começa automaticamente.
+
+Não é necessário criar outro serviço no Render, outra porta ou outra tabela para
+o PWA. Manifesto, service worker e tela do aplicativo são entregues pelo Web
+Service atual.
