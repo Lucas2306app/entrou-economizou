@@ -60,7 +60,7 @@ PWA_MANIFEST = {
     },
 }
 
-SERVICE_WORKER = r"""const CACHE='entrou-economizou-pwa-v2';
+SERVICE_WORKER = r"""const CACHE='entrou-economizou-pwa-v5';
 const STATIC=['/manifest.webmanifest','/logo.png','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
@@ -133,6 +133,7 @@ button.green{background:var(--green)} button.secondary{background:#19345f;color:
 canvas{width:100%;max-width:540px;height:auto;background:#07152f;border:1px solid #314b76;border-radius:15px}
 .small{font-size:12px;color:var(--muted);line-height:1.45}.small a{color:#8dc8ff;font-weight:700}
 .coupon{display:none;padding:12px;margin-top:10px;background:#142c1b;border:1px solid #527b39;border-radius:12px}
+.platform-picker{margin-bottom:10px}
 .quick-mode .advanced-only{display:none!important}
 .mode-bar{display:flex;align-items:center;gap:12px;justify-content:space-between}
 .mode-bar .small{max-width:760px}.share-main{flex:1;min-width:220px;font-size:16px}
@@ -155,13 +156,16 @@ canvas{width:100%;max-width:540px;height:auto;background:#07152f;border:1px soli
    <button id="modeButton" type="button" class="secondary" onclick="alternarModo()">Mostrar opções avançadas</button>
   </section>
   <section class="card full">
-   <div class="advanced-only">
+   <div class="platform-picker">
     <label for="platform" style="margin-top:0">Plataforma do anúncio</label>
     <select id="platform" onchange="trocarPlataforma()">
      <option value="mercadolivre">Mercado Livre</option>
      <option value="shopee">Shopee</option>
+     <option value="amazon">Amazon</option>
     </select>
    </div>
+   <label for="headline">Chamada principal do anúncio</label>
+   <input id="headline" maxlength="40" value="OFERTA QUE VALE" placeholder="Ex.: IMPERDÍVEL HOJE">
    <h2>1. Cole o link do anúncio</h2>
    <div class="two">
     <input id="url" placeholder="https://www.mercadolivre.com.br/...">
@@ -277,19 +281,20 @@ const S={info:null,img:null,offers:[],images:[],selectedImage:'',platform:'merca
 let installPrompt=null;
 $('brandLogo').src='/logo.png';
 $('hasCoupon').onchange=()=>{$('coupon').style.display=$('hasCoupon').checked?'block':'none';gerar()};
-['product','normalPrice','offerPrice','summary','benefits','couponPrice','couponCode','couponRule','affiliateLink','payment','format'].forEach(id=>$(id).addEventListener('input',gerar));
+['headline','product','normalPrice','offerPrice','summary','benefits','couponPrice','couponCode','couponRule','affiliateLink','payment','format'].forEach(id=>$(id).addEventListener('input',gerar));
 $('manualImage').onchange=e=>{
  const f=e.target.files?.[0]; if(!f){S.img=null;carregarImagemAutomatica();return}
  document.querySelectorAll('.image-option').forEach(b=>b.classList.remove('selected'));
  const im=new Image(); im.onload=()=>{S.img=im;gerar()}; im.src=URL.createObjectURL(f)
 };
 function status(t,c=''){$('status').className='status'+(c?' '+c:'');$('status').textContent=t}
-function nomePlataforma(){return S.platform==='shopee'?'Shopee':'Mercado Livre'}
-function dePlataforma(){return S.platform==='shopee'?'da Shopee':'do Mercado Livre'}
-function naPlataforma(){return S.platform==='shopee'?'na Shopee':'no Mercado Livre'}
+function nomePlataforma(){return S.platform==='shopee'?'Shopee':S.platform==='amazon'?'Amazon':'Mercado Livre'}
+function dePlataforma(){return S.platform==='shopee'?'da Shopee':S.platform==='amazon'?'da Amazon':'do Mercado Livre'}
+function naPlataforma(){return S.platform==='shopee'?'na Shopee':S.platform==='amazon'?'na Amazon':'no Mercado Livre'}
 function detectarPlataforma(valor){
  const v=String(valor||'').toLowerCase();
  if(/(?:shopee\.com\.br|s\.shopee\.com\.br|shope\.ee|shp\.ee)/.test(v))return 'shopee';
+ if(/(?:amazon\.com\.br|amzn\.to|a\.co\/|link\.amazon|amzlinks\.in)/.test(v))return 'amazon';
  if(/(?:mercadolivre\.com(?:\.br)?|meli\.la|meli\.re)/.test(v))return 'mercadolivre';
  return ''
 }
@@ -301,8 +306,9 @@ function ajustarPlataformaPeloLink(valor){
 function trocarPlataforma(anunciar=true){
  S.platform=$('platform').value;
  const shopee=S.platform==='shopee';
- $('url').placeholder=shopee?'Link original ou afiliado da Shopee':'Link original ou afiliado do Mercado Livre';
- $('oauthBox').style.display=shopee?'none':'block';
+ const amazon=S.platform==='amazon';
+ $('url').placeholder=shopee?'Link original ou afiliado da Shopee':amazon?'Link original ou afiliado da Amazon':'Link original ou afiliado do Mercado Livre';
+ $('oauthBox').style.display=S.platform==='mercadolivre'?'block':'none';
  $('alternativesCard').style.display='none';
  $('affiliateLabel').textContent=`Seu link de afiliado ${dePlataforma()} para publicar`;
  $('affiliateHelp').textContent='Ao buscar por um link de afiliado, este campo será preenchido automaticamente.';
@@ -483,10 +489,10 @@ async function carregarImagemAutomatica(){
 function dados(){
  const normal=num($('normalPrice').value),offer=num($('offerPrice').value),has=$('hasCoupon').checked,cp=has?num($('couponPrice').value):NaN;
  const final=has&&Number.isFinite(cp)?cp:offer, eco=Number.isFinite(normal)&&Number.isFinite(final)&&normal>final?normal-final:NaN;
- return {platform:S.platform,product:$('product').value.trim()||'Produto em oferta',normal,offer,final,has,eco,disc:pct(normal,final),summary:$('summary').value.trim(),benefits:$('benefits').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,5),coupon:$('couponCode').value.trim(),rule:$('couponRule').value.trim(),link:$('affiliateLink').value.trim(),payment:$('payment').value.trim()}
+ return {platform:S.platform,headline:$('headline').value.trim()||'OFERTA QUE VALE',product:$('product').value.trim()||'Produto em oferta',normal,offer,final,has,eco,disc:pct(normal,final),summary:$('summary').value.trim(),benefits:$('benefits').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,5),coupon:$('couponCode').value.trim(),rule:$('couponRule').value.trim(),link:$('affiliateLink').value.trim(),payment:$('payment').value.trim()}
 }
 function texto(d){
- const a=['🔥 *OFERTA QUE VALE*','',`🛒 *${d.product}*`,''];
+ const a=[`🔥 *${d.headline}*`,'',`🛒 *${d.product}*`,''];
  if(Number.isFinite(d.normal))a.push(`💲 De: *${brl(d.normal)}*`);
  if(d.has){
   if(Number.isFinite(d.offer))a.push(`🏷️ Sem cupom: *${brl(d.offer)}*`);
@@ -501,7 +507,8 @@ function texto(d){
  if(d.summary)a.push('',`💡 ${d.summary}`);
  if(d.benefits.length){a.push('');d.benefits.forEach(v=>a.push('✅ '+v))}
  a.push('','🔗 *Link da oferta:*',d.link||'[COLE SEU LINK DE AFILIADO AQUI]','');
- const loja=d.platform==='shopee'?'na Shopee':'no Mercado Livre';
+ if(d.platform==='amazon')a.push('#pub');
+ const loja=d.platform==='shopee'?'na Shopee':d.platform==='amazon'?'na Amazon':'no Mercado Livre';
  a.push(d.has?`⚠️ O valor final depende da aplicação do cupom. Preço, cupom e estoque ${loja} podem mudar.`:`⚠️ Preço e estoque ${loja} podem mudar a qualquer momento.`);
  return a.join('\n')
 }
@@ -514,7 +521,7 @@ function gerar(){
  const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,'#06142e');g.addColorStop(1,'#031027');c.fillStyle=g;c.fillRect(0,0,W,H);
  c.fillStyle='#ffd500';c.fillRect(0,0,W,13);c.fillStyle='#8ee000';c.fillRect(0,13,W,7);
  if(LOGO){const im=new Image();im.onload=()=>contain(c,im,45,25,245,140);im.src=LOGO}
- c.textAlign='right';c.fillStyle='#fff';c.font='900 34px Arial';c.fillText('OFERTA QUE VALE',W-52,70);c.fillStyle='#b9c7df';c.font='600 18px Arial';c.fillText('Entrou, Economizou',W-52,103);c.textAlign='left';
+ c.textAlign='right';c.fillStyle='#fff';let headlineSize=34;c.font=`900 ${headlineSize}px Arial`;while(headlineSize>18&&c.measureText(d.headline).width>W-360){headlineSize-=2;c.font=`900 ${headlineSize}px Arial`}c.fillText(d.headline,W-52,70);c.fillStyle='#b9c7df';c.font='600 18px Arial';c.fillText('Entrou, Economizou',W-52,103);c.textAlign='left';
  const m=52,C=W-m*2,top=H>1500?190:165;c.fillStyle='#fff';c.font='900 48px Arial';let tl=wrap(c,d.product,C).slice(0,2),y=top;tl.forEach(v=>{c.fillText(v,m,y);y+=53});
  const py=y+20,ph=d.has?245:190;rr(c,m,py,C,ph,24,'#0d1f42','#2f4d78');let yy=py+48;
  if(Number.isFinite(d.normal)){c.fillStyle='#b9c7df';c.font='600 25px Arial';c.fillText('DE',m+28,yy);c.fillStyle='#fff';c.font='800 31px Arial';c.fillText(brl(d.normal),m+100,yy);yy+=48}
@@ -613,6 +620,13 @@ SHOPEE_SHORT_HOSTS = {
     "shope.ee", "www.shope.ee",
     "shp.ee", "www.shp.ee", "br.shp.ee",
 }
+AMAZON_AFFILIATE_SHORT_HOSTS = {
+    "amzn.to", "www.amzn.to",
+    "link.amazon", "www.link.amazon",
+    "amzlinks.in", "www.amzlinks.in",
+}
+AMAZON_SHARE_SHORT_HOSTS = {"a.co", "www.a.co"}
+AMAZON_SHORT_HOSTS = AMAZON_AFFILIATE_SHORT_HOSTS | AMAZON_SHARE_SHORT_HOSTS
 
 
 def _safe_https_host(url):
@@ -634,6 +648,8 @@ def is_allowed_product_url(url, platform="mercadolivre"):
         return False
     if platform == "shopee":
         return host == "shopee.com.br" or host.endswith(".shopee.com.br")
+    if platform == "amazon":
+        return host == "amazon.com.br" or host.endswith(".amazon.com.br")
     return host == "mercadolivre.com.br" or host.endswith(".mercadolivre.com.br") or host == "mercadolivre.com" or host.endswith(".mercadolivre.com")
 
 
@@ -643,6 +659,8 @@ def is_allowed_product_input_url(url, platform="mercadolivre"):
         return False
     if platform == "shopee":
         return is_allowed_product_url(url, platform) or host in SHOPEE_SHORT_HOSTS
+    if platform == "amazon":
+        return is_allowed_product_url(url, platform) or host in AMAZON_SHORT_HOSTS
     return is_allowed_product_url(url, platform) or host in ML_SHORT_HOSTS
 
 
@@ -669,6 +687,13 @@ def is_affiliate_product_url(url, platform="mercadolivre"):
             or query.get("mmp_pid", "").lower().startswith("an_")
             or query.get("utm_source", "").lower().startswith("an_")
         )
+    if platform == "amazon":
+        return (
+            host in AMAZON_AFFILIATE_SHORT_HOSTS
+            or bool(query.get("tag"))
+            or bool(query.get("linkcode"))
+            or bool(query.get("ascsubtag"))
+        )
     return (
         host in ML_SHORT_HOSTS or path.startswith("/sec/") or path.startswith("/social/")
         or "matt_word" in query or "matt_tool" in query or "ref" in query
@@ -685,6 +710,12 @@ def canonicalize_product_url(url, platform="mercadolivre"):
             return ""
         # Item e loja já fazem parte do caminho; parâmetros de afiliado/rastreamento não são necessários.
         query = ""
+    elif platform == "amazon":
+        asin = extract_amazon_asin(url)
+        if not asin:
+            return ""
+        path = f"/dp/{asin}"
+        query = ""
     else:
         if not re.search(r"(?:MLB-?\d{6,}|/p/MLB\d{6,}|/up/MLBU\d{6,})", path, re.I):
             return ""
@@ -692,6 +723,21 @@ def canonicalize_product_url(url, platform="mercadolivre"):
         query = urlencode([(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True)
                            if key.lower() in keep])
     return urlunparse(("https", parsed.netloc.lower(), path, "", query, ""))
+
+
+def extract_amazon_asin(url, source=""):
+    """Find the 10-character Amazon product identifier in common Brazil URLs."""
+    candidates = [str(url or ""), str(source or "")]
+    patterns = (
+        r"/(?:dp|gp/product|gp/aw/d)/([A-Z0-9]{10})(?:[/?]|$)",
+        r'["\'](?:asin|ASIN|creativeASIN)["\']\s*[:=]\s*["\']([A-Z0-9]{10})',
+    )
+    for candidate in candidates:
+        for pattern in patterns:
+            match = re.search(pattern, candidate, re.I)
+            if match:
+                return match.group(1).upper()
+    return ""
 
 
 def shopee_product_ids(url):
@@ -720,6 +766,9 @@ def is_allowed_image_url(url):
         or host == "mercadolivre.com" or host.endswith(".mercadolivre.com")
         or host == "susercontent.com" or host.endswith(".susercontent.com")
         or host == "shopee.com.br" or host.endswith(".shopee.com.br")
+        or host == "media-amazon.com" or host.endswith(".media-amazon.com")
+        or host == "ssl-images-amazon.com" or host.endswith(".ssl-images-amazon.com")
+        or host == "amazon.com.br" or host.endswith(".amazon.com.br")
     )
 
 def detect_image_content_type(body):
@@ -1578,11 +1627,200 @@ def parse_shopee_page(url, affiliate_input=False):
     }
 
 
+def extract_amazon_images(source, ld, fallback=""):
+    found = []
+
+    def add(value):
+        if not isinstance(value, str):
+            return
+        value = htmlmod.unescape(value).replace("\\/", "/").strip()
+        if value.startswith("//"):
+            value = "https:" + value
+        if value.startswith("https://") and is_allowed_image_url(value) and value not in found:
+            found.append(value)
+
+    ld_images = ld.get("image") if isinstance(ld, dict) else None
+    if isinstance(ld_images, list):
+        for value in ld_images:
+            add(value)
+    else:
+        add(ld_images)
+    add(fallback)
+
+    decoded = htmlmod.unescape(source).replace("\\/", "/")
+    marker = decoded.find("colorImages")
+    image_block = decoded[marker:marker + 180000] if marker >= 0 else ""
+    for match in re.finditer(
+        r'"hiRes"\s*:\s*(?:"([^"]+)"|null).{0,700}?"large"\s*:\s*"([^"]+)"',
+        image_block, re.I | re.S,
+    ):
+        add(match.group(1) or match.group(2))
+        if len(found) >= 20:
+            break
+    if not found:
+        dynamic = re.search(r'id=["\']landingImage["\'][^>]+data-a-dynamic-image=["\'](.*?)["\']', decoded, re.I | re.S)
+        if dynamic:
+            candidates = re.findall(r'(https://[^"\'\s]+(?:\.jpg|\.jpeg|\.png|\.webp))', dynamic.group(1), re.I)
+            if candidates:
+                add(candidates[-1])
+    return found
+
+
+def _amazon_element_text(source, element_id):
+    match = re.search(
+        rf'<[^>]+id=["\']{re.escape(element_id)}["\'][^>]*>(.*?)</[^>]+>',
+        source, re.I | re.S,
+    )
+    return clean_text(match.group(1)) if match else ""
+
+
+def _amazon_price(source, old=False):
+    ids = (
+        ("priceblock_listprice", "basisPrice", "listPrice") if old else
+        ("priceblock_dealprice", "priceblock_ourprice", "priceToPay", "priceAmount")
+    )
+    for marker in ids:
+        text = _amazon_element_text(source, marker)
+        value = first_num(text)
+        if value is not None:
+            return value
+        patterns = (
+            rf'"{re.escape(marker)}"\s*:\s*\{{[^}}]{{0,500}}?"amount"\s*:\s*([0-9.]+)',
+            rf'"{re.escape(marker)}"\s*:\s*([0-9.]+)',
+        )
+        for pattern in patterns:
+            match = re.search(pattern, source, re.I | re.S)
+            if match:
+                value = first_num(match.group(1))
+                if value is not None:
+                    return value
+    if not old:
+        match = re.search(r'<span[^>]+class=["\'][^"\']*a-offscreen[^"\']*["\'][^>]*>\s*(R\$\s*[0-9.,]+)', source, re.I)
+        if match:
+            return first_num(match.group(1))
+    return None
+
+
+def parse_amazon_page(url, affiliate_input=False):
+    final_url, headers, body = http_get(
+        url,
+        extra_headers={"Referer": "https://www.amazon.com.br/"} if affiliate_input else None,
+        redirect_validator=lambda target: is_allowed_product_input_url(target, "amazon"),
+    )
+    final_host = _safe_https_host(final_url)
+    if final_host in {"amzlinks.in", "www.amzlinks.in"}:
+        bridge_source = htmlmod.unescape(body.decode("utf-8", errors="ignore")).replace("\\/", "/")
+        bridge_match = re.search(
+            r'window\.location\.(?:replace|assign)\(\s*["\'](https://[^"\']+)["\']\s*\)',
+            bridge_source, re.I,
+        )
+        bridge_url = bridge_match.group(1) if bridge_match else ""
+        if not is_allowed_product_url(bridge_url, "amazon"):
+            raise ValueError("O link curto não informou um produto válido da Amazon Brasil.")
+        final_url, headers, body = http_get(
+            bridge_url,
+            extra_headers={"Referer": final_url},
+            redirect_validator=lambda target: is_allowed_product_input_url(target, "amazon"),
+        )
+    if not is_allowed_product_url(final_url, "amazon"):
+        raise ValueError("O link redirecionou para um endereço fora da Amazon.")
+
+    source = body.decode("utf-8", errors="ignore")
+    ld = extract_json_ld(source)
+    asin = extract_amazon_asin(final_url, source) or extract_amazon_asin(url)
+    title = clean_text(ld.get("name")) if isinstance(ld, dict) else ""
+    title = title or _amazon_element_text(source, "productTitle")
+    title = title or clean_text(meta(source, "og:title")) or clean_text(meta(source, "twitter:title", "name"))
+
+    fallback_image = meta(source, "og:image") or meta(source, "twitter:image", "name")
+    images = extract_amazon_images(source, ld, fallback_image)
+    image = images[0] if images else fallback_image
+
+    offers = ld.get("offers", {}) if isinstance(ld, dict) else {}
+    if isinstance(offers, list):
+        offers = offers[0] if offers else {}
+    price = first_num(offers.get("price")) or first_num(offers.get("lowPrice"))
+    if price is None:
+        price = first_num(meta(source, "product:price:amount")) or _amazon_price(source)
+    old = first_num(offers.get("highPrice")) or _amazon_price(source, old=True)
+    if old is not None and price is not None and old <= price:
+        old = None
+
+    description = clean_text(ld.get("description")) if isinstance(ld, dict) else ""
+    features = extract_features(ld)[:5]
+    bullets = re.search(
+        r'id=["\']feature-bullets["\'](.*?)(?:id=["\']productOverview|id=["\']aplus|</ul>)',
+        source, re.I | re.S,
+    )
+    if bullets:
+        for item in re.findall(r'<li[^>]*>(.*?)</li>', bullets.group(1), re.I | re.S):
+            value = compact_feature(clean_text(item))
+            if value and len(value) <= 180 and value not in features:
+                features.append(value)
+            if len(features) >= 5:
+                break
+    features = features[:5]
+    if not description:
+        description = " ".join(features)
+
+    brand = ""
+    brand_data = ld.get("brand") if isinstance(ld, dict) else None
+    if isinstance(brand_data, dict):
+        brand = clean_text(brand_data.get("name"))
+    elif brand_data:
+        brand = clean_text(brand_data)
+    if not brand:
+        brand = re.sub(r"^(?:Visite a loja |Marca: )", "", _amazon_element_text(source, "bylineInfo"), flags=re.I)
+    if brand and not any("marca:" in value.lower() for value in features):
+        features.insert(0, f"Marca: {brand}")
+        features = features[:5]
+
+    availability = clean_text(offers.get("availability")) if isinstance(offers, dict) else ""
+    availability = availability.rsplit("/", 1)[-1] if availability else _amazon_element_text(source, "availability")
+    if availability.lower() in ("instock", "in stock"):
+        availability = "Disponível"
+    elif availability.lower() in ("outofstock", "out of stock"):
+        availability = "Sem estoque"
+
+    rating = ""
+    aggregate = ld.get("aggregateRating", {}) if isinstance(ld, dict) else {}
+    if isinstance(aggregate, dict) and aggregate.get("ratingValue"):
+        rating = str(aggregate.get("ratingValue"))
+
+    final_product_url = f"https://www.amazon.com.br/dp/{asin}" if asin else final_url
+    missing = []
+    if not title:
+        missing.append("nome")
+    if price is None:
+        missing.append("preço")
+    if not image:
+        missing.append("foto")
+    warning = ""
+    if missing:
+        warning = (
+            "A Amazon não expôs automaticamente " + ", ".join(missing) +
+            " deste produto. Confira e complete os campos que ficaram vazios."
+        )
+    return {
+        "ok": True, "platform": "amazon", "title": title,
+        "price": price, "original_price": old, "image": image, "images": images,
+        "description": description, "brand": brand,
+        "category": clean_text(ld.get("category")) if isinstance(ld, dict) else "",
+        "availability": availability or "Não informado", "rating": rating,
+        "free_shipping": bool(re.search(r"frete gr[aá]tis", source, re.I)),
+        "benefits": features,
+        "summary": make_summary(title, description, brand, price, old),
+        "final_url": final_product_url, "asin": asin, "warning": warning,
+    }
+
+
 def parse_product_input(url, platform="mercadolivre", access_token=""):
     """Resolve original and affiliate product URLs while preserving commission."""
     affiliate_input = is_affiliate_product_url(url, platform)
     if platform == "shopee":
         result = parse_shopee_page(url, affiliate_input=affiliate_input)
+    elif platform == "amazon":
+        result = parse_amazon_page(url, affiliate_input=affiliate_input)
     else:
         result = parse_product_page(url, access_token, affiliate_input=affiliate_input)
 
@@ -1878,7 +2116,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": False, "error": "O link informado é muito longo."}, 400)
             url = extract_product_input_url(raw_url)
             platform = query.get("platform", ["mercadolivre"])[0].strip().lower()
-            if platform not in ("mercadolivre", "shopee"):
+            if platform not in ("mercadolivre", "shopee", "amazon"):
                 return self.send_json({"ok": False, "error": "Plataforma inválida."}, 400)
             access_token = ""
             if platform == "mercadolivre":
@@ -1887,7 +2125,7 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
             if not url or not is_allowed_product_input_url(url, platform):
-                marketplace = "Shopee" if platform == "shopee" else "Mercado Livre"
+                marketplace = "Shopee" if platform == "shopee" else "Amazon" if platform == "amazon" else "Mercado Livre"
                 return self.send_json({
                     "ok": False,
                     "error": f"Use um link original ou de afiliado válido do {marketplace}.",
@@ -1896,10 +2134,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = parse_product_input(url, platform, access_token)
                 return self.send_json(result)
             except HTTPError as e:
-                service = "A Shopee" if platform == "shopee" else "O Mercado Livre"
+                service = "A Shopee" if platform == "shopee" else "A Amazon" if platform == "amazon" else "O Mercado Livre"
                 return self.send_json({"ok": False, "error": f"{service} respondeu com erro HTTP {e.code}. Tente novamente ou complete os campos manualmente."}, 502)
             except URLError as e:
-                service = "a Shopee" if platform == "shopee" else "o Mercado Livre"
+                service = "a Shopee" if platform == "shopee" else "a Amazon" if platform == "amazon" else "o Mercado Livre"
                 return self.send_json({"ok": False, "error": f"Não foi possível acessar {service} pela sua conexão."}, 502)
             except Exception as e:
                 return self.send_json({"ok":False,"error":f"Falha ao interpretar a página: {e}"}, 500)
@@ -1926,7 +2164,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(400, "Imagem não permitida")
                 return
             try:
-                image_headers = {"Referer": "https://shopee.com.br/"} if "shopee" in (urlparse(url).hostname or "") or "susercontent.com" in (urlparse(url).hostname or "") else None
+                image_host = (urlparse(url).hostname or "").lower()
+                if "shopee" in image_host or "susercontent.com" in image_host:
+                    image_headers = {"Referer": "https://shopee.com.br/"}
+                elif "amazon" in image_host:
+                    image_headers = {"Referer": "https://www.amazon.com.br/"}
+                else:
+                    image_headers = None
                 final, headers, body = http_get(url, accept="image/avif,image/webp,image/apng,image/*,*/*;q=0.8", timeout=45, extra_headers=image_headers)
                 if not is_allowed_image_url(final):
                     self.send_error(400, "Redirecionamento de imagem não permitido")
