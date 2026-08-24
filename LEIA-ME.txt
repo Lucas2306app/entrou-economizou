@@ -5,12 +5,15 @@ COMO USAR
 2. Dê dois cliques em INICIAR_GERADOR.bat.
 3. Uma janela preta ficará aberta e o navegador abrirá automaticamente.
 4. Escolha no topo entre MERCADO LIVRE e SHOPEE.
-5. Cole o LINK ORIGINAL COMPLETO do produto na plataforma escolhida.
+5. Cole o LINK ORIGINAL ou o LINK DE AFILIADO do produto na plataforma escolhida.
+   Também é possível colar a mensagem compartilhada pelo celular, desde que ela contenha o link.
 6. Clique em "Buscar e montar anúncio".
 7. Revise os dados encontrados.
+   Se você usou um link de afiliado, o gerador localiza o produto original e preenche automaticamente o link com comissão na publicação.
    Se houver várias fotos, clique na miniatura que deseja usar na arte e copiar para o WhatsApp.
 8. Se houver cupom, marque a opção e informe preço final + código.
-9. No campo "Seu link de afiliado", cole o link gerado pelo programa da plataforma escolhida.
+9. Se você começou pelo link original, cole no campo "Seu link de afiliado" o link gerado pelo programa da plataforma escolhida.
+   Se começou pelo link de afiliado, esse campo já estará preenchido.
 10. Copie a postagem e/ou baixe a imagem PNG.
 
 COMPARAÇÃO DE OFERTAS
@@ -39,7 +42,8 @@ IMPORTANTE
 - Quando necessário, o gerador renova o token automaticamente antes de consultar a API oficial.
 - A conexão OAuth do Mercado Livre fica oculta ao selecionar Shopee, pois as credenciais das plataformas são diferentes.
 - Na Shopee, o gerador tenta ler os dados públicos da página. Se a Shopee não expuser preço ou foto, complete os campos editáveis manualmente.
-- O link de afiliado da Shopee deve ser gerado no Programa de Afiliados da Shopee e colado no campo indicado.
+- Links originais e de afiliado/encurtados são aceitos para Mercado Livre e Shopee.
+- O link com comissão é preservado exatamente como foi informado; o endereço original identificado é usado apenas para consultar o produto.
 - Cupons nem sempre aparecem publicamente e devem ser informados manualmente.
 - Se a consulta falhar, continue usando o gerador manual que você já tem.
 
