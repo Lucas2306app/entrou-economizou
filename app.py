@@ -609,7 +609,10 @@ def clean_text(s):
     return s
 
 ML_SHORT_HOSTS = {"meli.la", "www.meli.la", "meli.re", "www.meli.re"}
-SHOPEE_SHORT_HOSTS = {"shope.ee", "www.shope.ee", "shp.ee", "www.shp.ee"}
+SHOPEE_SHORT_HOSTS = {
+    "shope.ee", "www.shope.ee",
+    "shp.ee", "www.shp.ee", "br.shp.ee",
+}
 
 
 def _safe_https_host(url):
