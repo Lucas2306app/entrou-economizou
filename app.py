@@ -60,7 +60,7 @@ PWA_MANIFEST = {
     },
 }
 
-SERVICE_WORKER = r"""const CACHE='entrou-economizou-pwa-v5';
+SERVICE_WORKER = r"""const CACHE='entrou-economizou-pwa-v6';
 const STATIC=['/manifest.webmanifest','/logo.png','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
@@ -211,7 +211,8 @@ canvas{width:100%;max-width:540px;height:auto;background:#07152f;border:1px soli
     <div id="imageGallery" class="image-gallery"></div>
    </div>
    <div class="info">
-    <div><span>Preço atual</span><b id="iPrice">—</b></div>
+    <div><span>Preço no Pix</span><b id="iPix">—</b></div>
+    <div><span>Outros pagamentos</span><b id="iPrice">—</b></div>
     <div><span>Preço anterior</span><b id="iOld">—</b></div>
     <div><span>Desconto</span><b id="iDisc">—</b></div>
     <div><span>Disponibilidade</span><b id="iAvail">—</b></div>
@@ -219,8 +220,9 @@ canvas{width:100%;max-width:540px;height:auto;background:#07152f;border:1px soli
    <label>Nome do produto</label><input id="product">
    <div class="two">
     <div><label>Preço normal/anterior (R$)</label><input id="normalPrice" inputmode="decimal"></div>
-    <div><label>Preço atual (R$)</label><input id="offerPrice" inputmode="decimal"></div>
+    <div><label>Preço em outros pagamentos (R$)</label><input id="offerPrice" inputmode="decimal"></div>
    </div>
+   <label>Preço exclusivo no Pix (R$ — opcional)</label><input id="pixPrice" inputmode="decimal" placeholder="Deixe vazio quando o preço for igual">
    <div class="advanced-only"><label>Resumo chamativo</label><textarea id="summary"></textarea>
    <label>Pontos principais (um por linha)</label><textarea id="benefits"></textarea></div>
    <div class="actions"><button id="compareButton" type="button" class="secondary" style="display:none" onclick="buscarAlternativas(S.info)">🔎 Procurar oferta mais barata</button></div>
@@ -240,10 +242,17 @@ canvas{width:100%;max-width:540px;height:auto;background:#07152f;border:1px soli
    </label>
    <div id="coupon" class="coupon">
     <div class="two">
-     <div><label>Preço final COM cupom (R$)</label><input id="couponPrice" inputmode="decimal"></div>
-     <div><label>Código do cupom</label><input id="couponCode" placeholder="Ex.: OFERTA10"></div>
+     <div><label>Desconto do cupom (%)</label><input id="couponPercent" inputmode="decimal" placeholder="Ex.: 10"></div>
+     <div><label>Desconto máximo (R$ — opcional)</label><input id="couponMaxDiscount" inputmode="decimal" placeholder="Ex.: 50"></div>
     </div>
-    <label>Regra do cupom (opcional)</label><input id="couponRule" placeholder="Ex.: compra mínima de R$ 100">
+    <div class="two">
+     <div><label>Final no Pix (manual — opcional)</label><input id="couponPixPrice" inputmode="decimal"></div>
+     <div><label>Final em outros pagamentos (manual — opcional)</label><input id="couponPrice" inputmode="decimal"></div>
+    </div>
+    <div class="two">
+     <div><label>Código do cupom</label><input id="couponCode" placeholder="Ex.: OFERTA10"></div>
+     <div><label>Regra do cupom (opcional)</label><input id="couponRule" placeholder="Ex.: compra mínima de R$ 100"></div>
+    </div>
    </div>
    <label id="affiliateLabel">Seu link de afiliado do Mercado Livre para publicar</label>
    <input id="affiliateLink" placeholder="Cole aqui o link gerado no Programa de Afiliados">
@@ -281,7 +290,7 @@ const S={info:null,img:null,offers:[],images:[],selectedImage:'',platform:'merca
 let installPrompt=null;
 $('brandLogo').src='/logo.png';
 $('hasCoupon').onchange=()=>{$('coupon').style.display=$('hasCoupon').checked?'block':'none';gerar()};
-['headline','product','normalPrice','offerPrice','summary','benefits','couponPrice','couponCode','couponRule','affiliateLink','payment','format'].forEach(id=>$(id).addEventListener('input',gerar));
+['headline','product','normalPrice','offerPrice','pixPrice','summary','benefits','couponPercent','couponMaxDiscount','couponPixPrice','couponPrice','couponCode','couponRule','affiliateLink','payment','format'].forEach(id=>$(id).addEventListener('input',gerar));
 $('manualImage').onchange=e=>{
  const f=e.target.files?.[0]; if(!f){S.img=null;carregarImagemAutomatica();return}
  document.querySelectorAll('.image-option').forEach(b=>b.classList.remove('selected'));
@@ -404,12 +413,16 @@ function preencher(x){
  $('catAchada').textContent=x.category?('Categoria: '+x.category):'';
  $('product').value=x.title||'';
  $('normalPrice').value=Number.isFinite(x.original_price)?x.original_price.toFixed(2).replace('.',','):'';
- $('offerPrice').value=Number.isFinite(x.price)?x.price.toFixed(2).replace('.',','):'';
+ const other=Number.isFinite(x.other_payment_price)?x.other_payment_price:x.price;
+ $('offerPrice').value=Number.isFinite(other)?other.toFixed(2).replace('.',','):'';
+ $('pixPrice').value=Number.isFinite(x.pix_price)?x.pix_price.toFixed(2).replace('.',','):'';
  $('summary').value=x.summary||'';
  $('benefits').value=(x.benefits||[]).join('\n');
- $('iPrice').textContent=Number.isFinite(x.price)?brl(x.price):'—';
+ $('iPrice').textContent=Number.isFinite(other)?brl(other):'—';
+ $('iPix').textContent=Number.isFinite(x.pix_price)?brl(x.pix_price):'—';
  $('iOld').textContent=Number.isFinite(x.original_price)?brl(x.original_price):'—';
- const d=pct(x.original_price,x.price);$('iDisc').textContent=Number.isFinite(d)?Math.round(d)+'%':'—';
+ const best=Number.isFinite(x.pix_price)?x.pix_price:other;
+ const d=pct(x.original_price,best);$('iDisc').textContent=Number.isFinite(d)?Math.round(d)+'%':'—';
  $('iAvail').textContent=x.availability||'Não informado';
  $('affiliateLink').value=x.affiliate_url||'';
  mostrarLinkOriginal(x.original_url||'');
@@ -472,6 +485,7 @@ function usarOferta(index){
  const o=S.offers[index];if(!o)return;
  if(!confirm(`Trocar para a oferta ${o.item_id} por ${brl(o.price)}? Confira o anúncio antes de gerar o link de afiliado.`))return;
  $('offerPrice').value=o.price.toFixed(2).replace('.',',');
+ $('pixPrice').value='';
  if(Number.isFinite(o.original_price))$('normalPrice').value=o.original_price.toFixed(2).replace('.',',');
  $('url').value=o.url;$('affiliateLink').value='';
  if(S.info){S.info.item_id=o.item_id;S.info.price=o.price;S.info.original_price=o.original_price;S.info.final_url=o.url}
@@ -486,21 +500,37 @@ async function carregarImagemAutomatica(){
   im.src='/api/image?url='+encodeURIComponent(selected);
  });
 }
+function finalComCupom(base,percent,maxDiscount,manual){
+ if(Number.isFinite(manual))return manual;
+ if(!Number.isFinite(base)||!Number.isFinite(percent)||percent<=0)return NaN;
+ let discount=base*Math.min(percent,100)/100;
+ if(Number.isFinite(maxDiscount)&&maxDiscount>0)discount=Math.min(discount,maxDiscount);
+ return Math.max(0,Math.round((base-discount)*100)/100)
+}
 function dados(){
- const normal=num($('normalPrice').value),offer=num($('offerPrice').value),has=$('hasCoupon').checked,cp=has?num($('couponPrice').value):NaN;
- const final=has&&Number.isFinite(cp)?cp:offer, eco=Number.isFinite(normal)&&Number.isFinite(final)&&normal>final?normal-final:NaN;
- return {platform:S.platform,headline:$('headline').value.trim()||'OFERTA QUE VALE',product:$('product').value.trim()||'Produto em oferta',normal,offer,final,has,eco,disc:pct(normal,final),summary:$('summary').value.trim(),benefits:$('benefits').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,5),coupon:$('couponCode').value.trim(),rule:$('couponRule').value.trim(),link:$('affiliateLink').value.trim(),payment:$('payment').value.trim()}
+ const normal=num($('normalPrice').value),offer=num($('offerPrice').value),pix=num($('pixPrice').value),has=$('hasCoupon').checked;
+ const couponPercent=has?num($('couponPercent').value):NaN,maxDiscount=has?num($('couponMaxDiscount').value):NaN;
+ const finalPix=has?finalComCupom(pix,couponPercent,maxDiscount,num($('couponPixPrice').value)):pix;
+ const finalOther=has?finalComCupom(offer,couponPercent,maxDiscount,num($('couponPrice').value)):offer;
+ const prices=[finalPix,finalOther].filter(Number.isFinite),final=prices.length?Math.min(...prices):NaN;
+ const eco=Number.isFinite(normal)&&Number.isFinite(final)&&normal>final?normal-final:NaN;
+ return {platform:S.platform,headline:$('headline').value.trim()||'OFERTA QUE VALE',product:$('product').value.trim()||'Produto em oferta',normal,offer,pix,finalPix,finalOther,final,has,couponPercent,maxDiscount,eco,disc:pct(normal,final),summary:$('summary').value.trim(),benefits:$('benefits').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,5),coupon:$('couponCode').value.trim(),rule:$('couponRule').value.trim(),link:$('affiliateLink').value.trim(),payment:$('payment').value.trim()}
 }
 function texto(d){
  const a=[`🔥 *${d.headline}*`,'',`🛒 *${d.product}*`,''];
  if(Number.isFinite(d.normal))a.push(`💲 De: *${brl(d.normal)}*`);
  if(d.has){
-  if(Number.isFinite(d.offer))a.push(`🏷️ Sem cupom: *${brl(d.offer)}*`);
-  if(Number.isFinite(d.final))a.push(`🎟️ *COM CUPOM: ${brl(d.final)}*`);
+  if(Number.isFinite(d.pix))a.push(`⚡ Pix sem cupom: *${brl(d.pix)}*`);
+  if(Number.isFinite(d.offer))a.push(`💳 Outros pagamentos sem cupom: *${brl(d.offer)}*`);
+  if(Number.isFinite(d.couponPercent))a.push(`🎟️ Desconto do cupom: *${d.couponPercent.toLocaleString('pt-BR')}%*${Number.isFinite(d.maxDiscount)&&d.maxDiscount>0?` (máximo ${brl(d.maxDiscount)})`:''}`);
+  if(Number.isFinite(d.finalPix))a.push(`⚡ *PIX COM CUPOM: ${brl(d.finalPix)}*`);
+  if(Number.isFinite(d.finalOther))a.push(`💳 *OUTROS PAGAMENTOS COM CUPOM: ${brl(d.finalOther)}*`);
   if(d.coupon)a.push(`🏷️ Cupom: *${d.coupon}*`);
   if(d.rule)a.push(`ℹ️ ${d.rule}`);
  }else{
-  if(Number.isFinite(d.offer))a.push(`💰 Por: *${brl(d.offer)}*`);
+  if(Number.isFinite(d.pix)&&Number.isFinite(d.offer)&&d.pix!==d.offer){a.push(`⚡ No Pix: *${brl(d.pix)}*`);a.push(`💳 Outros pagamentos: *${brl(d.offer)}*`)}
+  else if(Number.isFinite(d.pix))a.push(`⚡ No Pix: *${brl(d.pix)}*`);
+  else if(Number.isFinite(d.offer))a.push(`💰 Por: *${brl(d.offer)}*`);
   if(d.payment)a.push(`✅ Pagamento: *${d.payment}*`);
  }
  if(Number.isFinite(d.eco))a.push(`📉 *Economia de ${brl(d.eco)}${Number.isFinite(d.disc)?` (${Math.round(d.disc)}% OFF)`:''}*`);
@@ -523,14 +553,19 @@ function gerar(){
  if(LOGO){const im=new Image();im.onload=()=>contain(c,im,45,25,245,140);im.src=LOGO}
  c.textAlign='right';c.fillStyle='#fff';let headlineSize=34;c.font=`900 ${headlineSize}px Arial`;while(headlineSize>18&&c.measureText(d.headline).width>W-360){headlineSize-=2;c.font=`900 ${headlineSize}px Arial`}c.fillText(d.headline,W-52,70);c.fillStyle='#b9c7df';c.font='600 18px Arial';c.fillText('Entrou, Economizou',W-52,103);c.textAlign='left';
  const m=52,C=W-m*2,top=H>1500?190:165;c.fillStyle='#fff';c.font='900 48px Arial';let tl=wrap(c,d.product,C).slice(0,2),y=top;tl.forEach(v=>{c.fillText(v,m,y);y+=53});
- const py=y+20,ph=d.has?245:190;rr(c,m,py,C,ph,24,'#0d1f42','#2f4d78');let yy=py+48;
+ const dualPrice=Number.isFinite(d.pix)&&Number.isFinite(d.offer)&&d.pix!==d.offer;
+ const py=y+20,ph=d.has?300:(dualPrice?230:190);rr(c,m,py,C,ph,24,'#0d1f42','#2f4d78');let yy=py+48;
  if(Number.isFinite(d.normal)){c.fillStyle='#b9c7df';c.font='600 25px Arial';c.fillText('DE',m+28,yy);c.fillStyle='#fff';c.font='800 31px Arial';c.fillText(brl(d.normal),m+100,yy);yy+=48}
  if(d.has){
-  if(Number.isFinite(d.offer)){c.fillStyle='#b9c7df';c.font='600 23px Arial';c.fillText('SEM CUPOM',m+28,yy);c.fillStyle='#fff';c.font='800 29px Arial';c.fillText(brl(d.offer),m+205,yy);yy+=47}
-  c.fillStyle='#ffd500';c.font='900 26px Arial';c.fillText('COM CUPOM',m+28,yy);c.fillStyle='#8ee000';c.font='900 48px Arial';c.fillText(Number.isFinite(d.final)?brl(d.final):'—',m+225,yy);yy+=48;
-  if(d.coupon){rr(c,m+28,yy-27,C-56,44,11,'#ffd500');c.fillStyle='#07152f';c.font='900 21px Arial';c.fillText('CUPOM: '+d.coupon,m+45,yy+2)}
+  if(Number.isFinite(d.pix)){c.fillStyle='#ffd500';c.font='900 22px Arial';c.fillText('PIX',m+28,yy);c.fillStyle='#fff';c.font='800 29px Arial';c.fillText(brl(d.pix),m+115,yy);yy+=42}
+  if(Number.isFinite(d.offer)){c.fillStyle='#b9c7df';c.font='700 20px Arial';c.fillText('OUTROS',m+28,yy);c.fillStyle='#fff';c.font='800 27px Arial';c.fillText(brl(d.offer),m+145,yy);yy+=43}
+  if(Number.isFinite(d.finalPix)){c.fillStyle='#ffd500';c.font='900 21px Arial';c.fillText('PIX COM CUPOM',m+28,yy);c.fillStyle='#8ee000';c.font='900 34px Arial';c.fillText(brl(d.finalPix),m+235,yy);yy+=43}
+  if(Number.isFinite(d.finalOther)){c.fillStyle='#ffd500';c.font='900 19px Arial';c.fillText('OUTROS COM CUPOM',m+28,yy);c.fillStyle='#8ee000';c.font='900 32px Arial';c.fillText(brl(d.finalOther),m+260,yy);yy+=42}
+  if(d.coupon){rr(c,m+28,yy-27,C-56,40,11,'#ffd500');c.fillStyle='#07152f';c.font='900 20px Arial';c.fillText('CUPOM: '+d.coupon,m+45,yy)}
  }else{
-  c.fillStyle='#ffd500';c.font='900 27px Arial';c.fillText('POR',m+28,yy);c.fillStyle='#8ee000';c.font='900 52px Arial';c.fillText(Number.isFinite(d.offer)?brl(d.offer):'—',m+105,yy);yy+=48;if(d.payment){c.fillStyle='#fff';c.font='700 22px Arial';c.fillText('✅ '+d.payment,m+28,yy)}
+  if(Number.isFinite(d.pix)){c.fillStyle='#ffd500';c.font='900 27px Arial';c.fillText('PIX',m+28,yy);c.fillStyle='#8ee000';c.font='900 46px Arial';c.fillText(brl(d.pix),m+110,yy);yy+=49}
+  if(Number.isFinite(d.offer)){c.fillStyle='#b9c7df';c.font='700 22px Arial';c.fillText(dualPrice?'OUTROS PAGAMENTOS':'POR',m+28,yy);c.fillStyle='#fff';c.font='800 31px Arial';c.fillText(brl(d.offer),m+(dualPrice?275:105),yy);yy+=43}
+  if(d.payment){c.fillStyle='#fff';c.font='700 22px Arial';c.fillText('✅ '+d.payment,m+28,yy)}
  }
  if(Number.isFinite(d.eco)){const s=`ECONOMIZE ${brl(d.eco)}${Number.isFinite(d.disc)?' • '+Math.round(d.disc)+'% OFF':''}`;rr(c,W-440,py+20,345,52,26,'#8ee000');c.textAlign='center';c.fillStyle='#07152f';c.font='900 19px Arial';c.fillText(s,W-267,py+54);c.textAlign='left'}
  const by=py+ph+25,fh=H>1500?330:245,bh=H-by-fh-30,iw=Math.round(C*.46),bx=m+iw+32,bw=C-iw-32;rr(c,m,by,iw,bh,23,'#fff');
@@ -538,7 +573,7 @@ function gerar(){
  else{c.textAlign='center';c.fillStyle='#c8d2e0';c.font='700 24px Arial';c.fillText('FOTO DO PRODUTO',m+iw/2,by+bh/2);c.textAlign='left'}
  c.fillStyle='#fff';c.font='900 26px Arial';c.fillText('POR QUE VALE A PENA',bx,by+36);c.fillStyle='#ffd500';c.fillRect(bx,by+50,bw,4);let z=by+91;
  (d.benefits.length?d.benefits:['Produto selecionado','Confira preço e condições']).slice(0,5).forEach(v=>{c.fillStyle='#8ee000';c.font='900 26px Arial';c.fillText('✓',bx,z);c.fillStyle='#fff';c.font='700 20px Arial';const ls=wrap(c,v,bw-38).slice(0,2);ls.forEach((q,i)=>c.fillText(q,bx+35,z+i*25));z+=Math.max(48,ls.length*25+17)});
- const fy=H-fh+10;rr(c,m,fy,C,fh-45,23,'#0d1f42','#ffd500');c.fillStyle='#ffd500';c.font='900 26px Arial';c.fillText(d.has?'🎟️ PREÇO FINAL COM CUPOM':'💰 OFERTA ENCONTRADA',m+26,fy+42);c.fillStyle='#fff';c.font='700 20px Arial';
+ const fy=H-fh+10;rr(c,m,fy,C,fh-45,23,'#0d1f42','#ffd500');c.fillStyle='#ffd500';c.font='900 26px Arial';c.fillText(d.has?'🎟️ PREÇOS FINAIS COM CUPOM':'💰 OFERTA ENCONTRADA',m+26,fy+42);c.fillStyle='#fff';c.font='700 20px Arial';
  const sl=wrap(c,d.summary||'Confira os detalhes e condições da oferta.',C-52).slice(0,H>1500?4:3);sl.forEach((q,i)=>c.fillText(q,m+26,fy+82+i*25));c.fillStyle='#b9c7df';c.font='600 16px Arial';const warn=d.has?'Preço final depende da aplicação do cupom. Preço, estoque e cupom podem mudar.':'Preço e estoque podem mudar a qualquer momento.';wrap(c,warn,C-52).slice(0,2).forEach((q,i)=>c.fillText(q,m+26,fy+105+sl.length*25+i*20));c.fillStyle='#8ee000';c.fillRect(0,H-18,W,18)
 }
 async function copiar(){try{await navigator.clipboard.writeText($('post').textContent);alert('Publicação copiada!')}catch(e){alert('Não foi possível copiar automaticamente. Selecione o texto e copie.')}}
@@ -866,6 +901,7 @@ def parse_catalog_api(catalog_id, access_token):
     available = offer.get("available_quantity")
     product_result.update({
         "price": price,
+        "other_payment_price": price,
         "original_price": old,
         "availability": "Disponível" if available is None or available > 0 else "Sem estoque",
         "free_shipping": bool((offer.get("shipping") or {}).get("free_shipping")),
@@ -922,6 +958,7 @@ def parse_catalog_details_api(catalog_id, access_token):
     description = " ".join(features)
     return {
         "ok": True, "title": title, "price": None, "original_price": None,
+        "other_payment_price": None, "pix_price": None,
         "image": images[0] if images else "", "images": images,
         "description": description, "brand": brand,
         "category": clean_text(product.get("domain_id")), "availability": "Não informado",
@@ -1007,6 +1044,7 @@ def parse_item_api(item_id, access_token):
 
     return {
         "ok": True, "title": title, "price": price, "original_price": old,
+        "other_payment_price": price, "pix_price": None,
         "image": image, "images": images, "description": " ".join(features), "brand": brand,
         "category": clean_text(item.get("category_id")), "availability": availability,
         "rating": "", "free_shipping": bool((item.get("shipping") or {}).get("free_shipping")),
@@ -1321,6 +1359,8 @@ def parse_product_page(url, access_token="", affiliate_input=False):
         try:
             api_result = parse_item_api(item_id, access_token)
             if social_card:
+                api_price = first_num(api_result.get("price"))
+                social_price = first_num(social_card.get("price"))
                 # Price and picture shown by the affiliate link can include a
                 # current Pix promotion that is not reflected in items/{id}.
                 for key in ("title", "price", "original_price", "image", "images",
@@ -1329,6 +1369,11 @@ def parse_product_page(url, access_token="", affiliate_input=False):
                     value = social_card.get(key)
                     if value not in (None, "", []):
                         api_result[key] = value
+                if api_price is not None and social_price is not None and social_price < api_price:
+                    api_result["pix_price"] = social_price
+                    api_result["other_payment_price"] = api_price
+                else:
+                    api_result["other_payment_price"] = social_price if social_price is not None else api_price
                 api_result["summary"] = make_summary(
                     api_result.get("title", ""), api_result.get("description", ""),
                     api_result.get("brand", ""), api_result.get("price"),
@@ -1353,6 +1398,8 @@ def parse_product_page(url, access_token="", affiliate_input=False):
                 "description": catalog.get("description") or social_card.get("description", ""),
                 "benefits": catalog.get("benefits") or social_card.get("benefits", []),
                 "images": merged_images,
+                "other_payment_price": social_card.get("price"),
+                "pix_price": None,
             })
             if not social_card.get("category"):
                 social_card["category"] = catalog.get("category", "")
@@ -1371,6 +1418,8 @@ def parse_product_page(url, access_token="", affiliate_input=False):
         except (HTTPError, URLError, ValueError, json.JSONDecodeError):
             pass
     if social_card:
+        social_card["other_payment_price"] = social_card.get("price")
+        social_card["pix_price"] = None
         social_card["warning"] = (
             "Produto e preço exatos identificados pelo link de afiliado. "
             "Conecte novamente o Mercado Livre para carregar as características oficiais."
