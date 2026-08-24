@@ -12,6 +12,7 @@ from http.cookies import SimpleCookie
 import base64, hashlib, hmac, json, os, re, secrets
 import html as htmlmod, webbrowser, threading, time, mimetypes, socket, unicodedata
 from difflib import SequenceMatcher
+from pathlib import Path
 import meli_auth
 
 IS_RENDER = bool(os.environ.get("RENDER"))
@@ -34,12 +35,20 @@ PWA_MANIFEST = {
     "background_color": "#07152f",
     "theme_color": "#07152f",
     "lang": "pt-BR",
-    "icons": [{
-        "src": "/logo.png",
-        "sizes": "1254x1254",
-        "type": "image/png",
-        "purpose": "any",
-    }],
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any",
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any",
+        },
+    ],
     "share_target": {
         "action": "/receive-share",
         "method": "GET",
@@ -51,8 +60,8 @@ PWA_MANIFEST = {
     },
 }
 
-SERVICE_WORKER = r"""const CACHE='entrou-economizou-pwa-v1';
-const STATIC=['/manifest.webmanifest','/logo.png'];
+SERVICE_WORKER = r"""const CACHE='entrou-economizou-pwa-v2';
+const STATIC=['/manifest.webmanifest','/logo.png','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
 });
@@ -79,7 +88,7 @@ HTML = r"""<!doctype html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/logo.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
 <title>Entrou, Economizou — Gerador Automático</title>
 <style>
 :root{--navy:#07152f;--panel:#0d1f42;--panel2:#10284f;--text:#fff;--muted:#b9c7df;--yellow:#ffd500;--green:#8ee000;--line:#2e4a75;--red:#ff6767}
@@ -137,7 +146,7 @@ canvas{width:100%;max-width:540px;height:auto;background:#07152f;border:1px soli
    <img id="brandLogo" class="logo">
    <div><h1>Entrou, Economizou — Gerador Automático</h1>
    <div id="headerSub" class="sub">Escolha a plataforma, cole o link original ou de afiliado e prepare a publicação.</div></div>
-   <div class="account"><span id="currentUser"></span><button id="installApp" type="button" style="display:none" onclick="instalarApp()">Instalar app</button><button type="button" class="secondary" onclick="sair()">Sair</button></div>
+   <div class="account"><span id="currentUser"></span><button id="installApp" type="button" onclick="instalarApp()">Instalar app</button><button type="button" class="secondary" onclick="sair()">Sair</button></div>
  </div>
 
  <div class="grid">
@@ -575,6 +584,8 @@ function linkCompartilhado(){
  return (encontrado?encontrado[0]:recebido).replace(/[.,;:!?)}\]]+$/,'')
 }
 async function inicializar(){
+ const instalado=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+ $('installApp').style.display=instalado?'none':'inline-block';
  aplicarModo(localStorage.getItem('modoCompleto')!=='1');
  await registrarPWA();
  gerar();await carregarSessao();
@@ -1451,7 +1462,7 @@ def parse_product_input(url, platform="mercadolivre", access_token=""):
     return result
 
 LOGIN_HTML = r"""<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07152f"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/logo.png">
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07152f"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
 <title>Entrou, Economizou — Acesso</title><style>
 :root{--navy:#07152f;--panel:#0d1f42;--text:#fff;--muted:#b9c7df;--yellow:#ffd500;--line:#2e4a75;--red:#ffb3b3}
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#051027,#091c3b);color:var(--text)}
@@ -1631,7 +1642,7 @@ class Handler(BaseHTTPRequestHandler):
             data = json.dumps(PWA_MANIFEST, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/manifest+json; charset=utf-8")
-            self.send_header("Cache-Control", "public, max-age=3600")
+            self.send_header("Cache-Control", "no-cache")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -1650,6 +1661,21 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/logo.png":
             data = base64.b64decode(LOGO_B64)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if parsed.path in ("/icon-192.png", "/icon-512.png"):
+            icon_path = Path(__file__).resolve().parent / parsed.path.lstrip("/")
+            try:
+                data = icon_path.read_bytes()
+            except OSError:
+                self.send_error(404, "Ícone não encontrado")
+                return
             self.send_response(200)
             self.send_header("Content-Type", "image/png")
             self.send_header("Cache-Control", "public, max-age=86400")

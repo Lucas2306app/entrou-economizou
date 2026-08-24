@@ -4,6 +4,7 @@ USO RÁPIDO NO CELULAR
 1. Abra a versão hospedada no Chrome ou navegador compatível e entre com seu usuário.
 2. Use "Instalar app". Se o botão não aparecer, use o menu do navegador e escolha
    "Instalar app" ou "Adicionar à tela inicial".
+   O pacote inclui os ícones 192 × 192 e 512 × 512 exigidos pelos navegadores Chromium.
 3. No Mercado Livre ou na Shopee, abra o produto e use o menu "Compartilhar".
 4. Escolha "Entrou, Economizou". O aplicativo detecta a plataforma, recebe o link
    original ou de afiliado e inicia a busca automaticamente.
