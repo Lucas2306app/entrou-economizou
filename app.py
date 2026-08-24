@@ -1044,6 +1044,43 @@ def extract_features(ld):
         if len(out) >= 4: break
     return out
 
+
+def extract_shopee_public_features(source):
+    """Read brand and attributes embedded in Shopee's public product state."""
+    decoder = json.JSONDecoder()
+    for marker in re.finditer(r'"attributes"\s*:\s*', source, re.I):
+        try:
+            attributes, _ = decoder.raw_decode(source[marker.end():])
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(attributes, list):
+            continue
+        features = []
+        for attribute in attributes:
+            if not isinstance(attribute, dict):
+                continue
+            name = clean_text(attribute.get("name"))
+            value = clean_text(attribute.get("value"))
+            if name and value:
+                feature = compact_feature(f"{name}: {value}")
+                if feature and feature not in features:
+                    features.append(feature)
+            if len(features) >= 5:
+                break
+        if not features:
+            continue
+
+        prefix = source[max(0, marker.start() - 20000):marker.start()]
+        brand = ""
+        brand_matches = list(re.finditer(r'"brand"\s*:\s*"((?:\\.|[^"\\])*)"', prefix, re.I))
+        if brand_matches:
+            try:
+                brand = clean_text(json.loads('"' + brand_matches[-1].group(1) + '"'))
+            except (ValueError, TypeError):
+                brand = clean_text(brand_matches[-1].group(1))
+        return brand, features
+    return "", []
+
 def compact_feature(value, max_length=58):
     text = clean_text(value)
     text = re.split(r"\s+(?:ideal\s+para|que garante|para garantir|para organização|para armazenar|oferecem|asseguram)\b", text, maxsplit=1, flags=re.I)[0]
@@ -1408,6 +1445,7 @@ def parse_shopee_page(url, affiliate_input=False):
     image = images[0] if images else fallback_image
 
     description = clean_text(ld.get("description")) or clean_text(meta(source, "description", "name"))
+    embedded_brand, embedded_features = extract_shopee_public_features(source)
     offers = ld.get("offers", {}) if isinstance(ld, dict) else {}
     if isinstance(offers, list):
         offers = offers[0] if offers else {}
@@ -1431,9 +1469,17 @@ def parse_shopee_page(url, affiliate_input=False):
         brand = clean_text(brand_data.get("name"))
     elif brand_data:
         brand = clean_text(brand_data)
+    if not brand:
+        brand = embedded_brand
     features = extract_features(ld)[:5]
+    for feature in embedded_features:
+        if feature not in features:
+            features.append(feature)
+        if len(features) >= 5:
+            break
     if brand and not any("marca:" in item.lower() for item in features):
         features.insert(0, f"Marca: {brand}")
+    features = features[:5]
 
     rating = ""
     aggregate = ld.get("aggregateRating", {}) if isinstance(ld, dict) else {}
