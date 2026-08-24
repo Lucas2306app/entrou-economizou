@@ -800,10 +800,7 @@ def title_from_shopee_url(url):
 
 def parse_catalog_api(catalog_id, access_token):
     auth = {"Authorization": f"Bearer {access_token}"}
-    _, product = http_get_json(
-        f"https://api.mercadolibre.com/products/{quote(catalog_id)}",
-        extra_headers=auth,
-    )
+    product_result = parse_catalog_details_api(catalog_id, access_token)
     _, listing = http_get_json(
         f"https://api.mercadolibre.com/products/{quote(catalog_id)}/items",
         extra_headers=auth,
@@ -813,39 +810,77 @@ def parse_catalog_api(catalog_id, access_token):
     if not offers:
         raise ValueError("Nenhuma oferta ativa foi encontrada para esse produto de catálogo.")
     offer = min(offers, key=lambda x: first_num(x.get("price")))
-    title = clean_text(product.get("name"))
     price = first_num(offer.get("price"))
     old = first_num(offer.get("original_price"))
     if old is not None and price is not None and old <= price:
         old = None
-    pictures = product.get("pictures") or []
+    available = offer.get("available_quantity")
+    product_result.update({
+        "price": price,
+        "original_price": old,
+        "availability": "Disponível" if available is None or available > 0 else "Sem estoque",
+        "free_shipping": bool((offer.get("shipping") or {}).get("free_shipping")),
+        "category": product_result.get("category") or clean_text(offer.get("category_id")),
+        "item_id": offer.get("item_id") or "",
+    })
+    product_result["summary"] = make_summary(
+        product_result.get("title", ""), product_result.get("description", ""),
+        product_result.get("brand", ""), price, old,
+    )
+    return product_result
+
+
+def parse_catalog_details_api(catalog_id, access_token):
+    """Load catalog facts without requiring the listing/offers endpoint."""
+    _, product = http_get_json(
+        f"https://api.mercadolibre.com/products/{quote(catalog_id)}",
+        extra_headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if not isinstance(product, dict) or not product.get("name"):
+        raise ValueError("A API do Mercado Livre não retornou os dados do catálogo.")
+
     images = []
-    for picture in pictures:
-        if isinstance(picture, dict) and picture.get("url") and picture.get("url") not in images:
-            images.append(picture.get("url"))
-    image = images[0] if images else ""
-    feature_texts = []
+    for picture in product.get("pictures") or []:
+        if not isinstance(picture, dict):
+            continue
+        picture_url = picture.get("secure_url") or picture.get("url") or ""
+        if picture_url and picture_url not in images:
+            images.append(picture_url)
+
+    brand = ""
+    features = []
     for feature in product.get("main_features") or []:
         value = clean_text(feature.get("text")) if isinstance(feature, dict) else ""
-        if value:
-            feature_texts.append(compact_feature(value))
-    brand = ""
+        if value and value not in features:
+            features.append(compact_feature(value))
+    ignored = {"GTIN", "EMPTY_GTIN_REASON", "SELLER_SKU", "ITEM_CONDITION"}
     for attr in product.get("attributes") or []:
-        if isinstance(attr, dict) and attr.get("id") == "BRAND":
-            brand = clean_text(attr.get("value_name"))
+        if not isinstance(attr, dict):
+            continue
+        attr_id = clean_text(attr.get("id")).upper()
+        name = clean_text(attr.get("name"))
+        value = clean_text(attr.get("value_name"))
+        if attr_id == "BRAND" and value:
+            brand = value
+        if attr_id not in ignored and name and value and len(name) < 40 and len(value) < 80:
+            text = compact_feature(f"{name}: {value}")
+            if text not in features:
+                features.append(text)
+        if len(features) >= 8:
             break
-    available = offer.get("available_quantity")
+    features = features[:5]
+    title = clean_text(product.get("name"))
+    description = " ".join(features)
     return {
-        "ok": True, "title": title, "price": price, "original_price": old,
-        "image": image, "images": images, "description": " ".join(feature_texts), "brand": brand,
-        "category": clean_text(product.get("domain_id") or offer.get("category_id")),
-        "availability": "Disponível" if available is None or available > 0 else "Sem estoque",
-        "rating": "", "free_shipping": bool((offer.get("shipping") or {}).get("free_shipping")),
-        "benefits": feature_texts[:5],
-        "summary": make_summary(title, " ".join(feature_texts), brand, price, old),
-        "final_url": product.get("permalink") or "",
-        "catalog_id": catalog_id, "item_id": offer.get("item_id") or "",
-        "warning": "Dados carregados pela API oficial. Confirme preço e condições antes de publicar.",
+        "ok": True, "title": title, "price": None, "original_price": None,
+        "image": images[0] if images else "", "images": images,
+        "description": description, "brand": brand,
+        "category": clean_text(product.get("domain_id")), "availability": "Não informado",
+        "rating": "", "free_shipping": False, "benefits": features,
+        "summary": make_summary(title, description, brand, None, None),
+        "final_url": product.get("permalink") or "", "catalog_id": catalog_id,
+        "item_id": "",
+        "warning": "Características carregadas pelo catálogo oficial do Mercado Livre.",
     }
 
 def find_catalog_offers(catalog_id, access_token):
@@ -898,12 +933,17 @@ def parse_item_api(item_id, access_token):
         images.insert(0, image)
 
     features = []
+    brand = ""
+    ignored = {"GTIN", "EMPTY_GTIN_REASON", "SELLER_SKU", "ITEM_CONDITION"}
     for attr in item.get("attributes") or []:
         if not isinstance(attr, dict):
             continue
+        attr_id = clean_text(attr.get("id")).upper()
         name = clean_text(attr.get("name"))
         value = clean_text(attr.get("value_name"))
-        if name and value and len(name) < 40 and len(value) < 80:
+        if attr_id == "BRAND" and value:
+            brand = value
+        if attr_id not in ignored and name and value and len(name) < 40 and len(value) < 80:
             features.append(compact_feature(f"{name}: {value}"))
         if len(features) >= 5:
             break
@@ -918,10 +958,10 @@ def parse_item_api(item_id, access_token):
 
     return {
         "ok": True, "title": title, "price": price, "original_price": old,
-        "image": image, "images": images, "description": "", "brand": "",
+        "image": image, "images": images, "description": " ".join(features), "brand": brand,
         "category": clean_text(item.get("category_id")), "availability": availability,
         "rating": "", "free_shipping": bool((item.get("shipping") or {}).get("free_shipping")),
-        "benefits": features, "summary": make_summary(title, "", "", price, old),
+        "benefits": features, "summary": make_summary(title, " ".join(features), brand, price, old),
         "final_url": item.get("permalink") or "",
         "item_id": clean_text(item.get("id") or item_id),
         "warning": "Dados carregados pela API oficial. Confirme preço e condições antes de publicar.",
@@ -1252,6 +1292,34 @@ def parse_product_page(url, access_token="", affiliate_input=False):
             return api_result
         except (HTTPError, URLError, ValueError, json.JSONDecodeError):
             # Keep the existing HTML parser as a fallback if the API is unavailable.
+            pass
+    if social_card and access_token and social_card.get("catalog_id"):
+        try:
+            catalog = parse_catalog_details_api(social_card["catalog_id"], access_token)
+            social_images = social_card.get("images") or []
+            catalog_images = catalog.get("images") or []
+            merged_images = list(dict.fromkeys(social_images + catalog_images))
+            social_card.update({
+                "brand": catalog.get("brand") or social_card.get("brand", ""),
+                "description": catalog.get("description") or social_card.get("description", ""),
+                "benefits": catalog.get("benefits") or social_card.get("benefits", []),
+                "images": merged_images,
+            })
+            if not social_card.get("category"):
+                social_card["category"] = catalog.get("category", "")
+            if not social_card.get("image") and merged_images:
+                social_card["image"] = merged_images[0]
+            social_card["summary"] = make_summary(
+                social_card.get("title", ""), social_card.get("description", ""),
+                social_card.get("brand", ""), social_card.get("price"),
+                social_card.get("original_price"),
+            )
+            social_card["warning"] = (
+                "Produto e preço exatos identificados pelo link de afiliado. "
+                "Características carregadas pelo catálogo oficial do Mercado Livre."
+            )
+            return social_card
+        except (HTTPError, URLError, ValueError, json.JSONDecodeError):
             pass
     if social_card:
         social_card["warning"] = (
