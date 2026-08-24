@@ -900,6 +900,109 @@ def make_summary(title, description, brand, price, old):
         base += f" {d}% OFF."
     return base
 
+
+def extract_social_featured_card(source):
+    """Read only the product explicitly shared in a Mercado Livre affiliate profile.
+
+    Social pages also contain many recommendations. Reading a generic price or the
+    first MLB code from the full document can therefore mix different products.
+    The shared product lives in the card-featured component.
+    """
+    marker = source.find('"id":"card-featured"')
+    if marker < 0:
+        return None
+    polycards = source.find('"polycards":[', marker, marker + 120000)
+    if polycards < 0:
+        return None
+    start = source.find("{", polycards)
+    if start < 0:
+        return None
+    try:
+        card, _ = json.JSONDecoder().raw_decode(source[start:])
+    except (ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(card, dict):
+        return None
+
+    metadata = card.get("metadata") or {}
+    item_id = clean_text(metadata.get("id")).replace("-", "").upper()
+    if not re.fullmatch(r"MLB\d{6,}", item_id):
+        return None
+    catalog_id = clean_text(metadata.get("product_id")).upper()
+    if not re.fullmatch(r"MLB\d{6,}", catalog_id):
+        catalog_id = ""
+    user_product_id = clean_text(metadata.get("user_product_id")).upper()
+
+    title = ""
+    price = None
+    old = None
+    availability = "Disponível"
+    free_shipping = False
+    for component in card.get("components") or []:
+        if not isinstance(component, dict):
+            continue
+        component_id = component.get("id")
+        if component_id == "title":
+            title = clean_text((component.get("title") or {}).get("text"))
+        elif component_id == "price":
+            price_data = component.get("price") or {}
+            price = first_num((price_data.get("current_price") or {}).get("value"))
+            old = first_num((price_data.get("previous_price") or {}).get("value"))
+        elif component_id == "shipping":
+            shipping_text = clean_text((component.get("shipping") or {}).get("text"))
+            free_shipping = bool(re.search(r"frete gr[aá]tis", shipping_text, re.I))
+        elif component_id == "last_available":
+            availability = clean_text((component.get("last_available") or {}).get("text")) or availability
+    if old is not None and price is not None and old <= price:
+        old = None
+
+    images = []
+    for picture in (card.get("pictures") or {}).get("pictures") or []:
+        picture_id = clean_text(picture.get("id")) if isinstance(picture, dict) else ""
+        if picture_id:
+            picture_url = f"https://http2.mlstatic.com/D_NQ_NP_{picture_id}-O.webp"
+            if picture_url not in images:
+                images.append(picture_url)
+
+    target_url = ""
+    url_params = clean_text(metadata.get("url_params"))
+    if url_params:
+        target_url = (parse_qs(url_params.lstrip("?")).get("url") or [""])[0]
+    parsed_target = urlparse(target_url)
+    if is_allowed_product_url(target_url, "mercadolivre") and re.search(r"/p/MLB\d{6,}", parsed_target.path, re.I):
+        original_url = urlunparse((
+            "https", parsed_target.netloc.lower(), parsed_target.path, "",
+            urlencode({"item_id": item_id}), "",
+        ))
+    elif catalog_id:
+        original_url = f"https://www.mercadolivre.com.br/p/{catalog_id}?item_id={quote(item_id)}"
+    else:
+        original_url = f"https://produto.mercadolivre.com.br/MLB-{item_id[3:]}"
+
+    return {
+        "ok": True,
+        "platform": "mercadolivre",
+        "title": title,
+        "price": price,
+        "original_price": old,
+        "image": images[0] if images else "",
+        "images": images,
+        "description": "",
+        "brand": "",
+        "category": clean_text(metadata.get("category_id")),
+        "availability": availability,
+        "rating": "",
+        "free_shipping": free_shipping,
+        "benefits": [],
+        "summary": make_summary(title, "", "", price, old),
+        "final_url": original_url,
+        "item_id": item_id,
+        "catalog_id": catalog_id,
+        "user_product_id": user_product_id,
+        "warning": "",
+    }
+
+
 def parse_product_page(url, access_token="", affiliate_input=False):
     mobile_headers = None
     if affiliate_input:
@@ -914,13 +1017,41 @@ def parse_product_page(url, access_token="", affiliate_input=False):
     source = body.decode("utf-8", errors="ignore")
     ld = extract_json_ld(source)
 
-    item_id = extract_item_id(url + " " + final_url, source)
+    social_card = extract_social_featured_card(source) if affiliate_input else None
+    item_id = (social_card or {}).get("item_id") or extract_item_id(url + " " + final_url, source)
     if item_id and access_token:
         try:
-            return parse_item_api(item_id, access_token)
+            api_result = parse_item_api(item_id, access_token)
+            if social_card:
+                # Price and picture shown by the affiliate link can include a
+                # current Pix promotion that is not reflected in items/{id}.
+                for key in ("title", "price", "original_price", "image", "images",
+                            "availability", "free_shipping", "final_url", "catalog_id",
+                            "user_product_id"):
+                    value = social_card.get(key)
+                    if value not in (None, "", []):
+                        api_result[key] = value
+                api_result["summary"] = make_summary(
+                    api_result.get("title", ""), api_result.get("description", ""),
+                    api_result.get("brand", ""), api_result.get("price"),
+                    api_result.get("original_price"),
+                )
+                api_result["warning"] = (
+                    "Produto exato identificado pelo link de afiliado. "
+                    "Preço do link e características da API oficial carregados."
+                )
+            return api_result
         except (HTTPError, URLError, ValueError, json.JSONDecodeError):
             # Keep the existing HTML parser as a fallback if the API is unavailable.
             pass
+    if social_card:
+        social_card["warning"] = (
+            "Produto e preço exatos identificados pelo link de afiliado. "
+            "Conecte novamente o Mercado Livre para carregar as características oficiais."
+            if not access_token else
+            "Produto e preço exatos identificados, mas a API do Mercado Livre não retornou as características."
+        )
+        return social_card
     catalog_id = extract_catalog_id(url) or extract_catalog_id(final_url)
     if catalog_id and access_token:
         try:
